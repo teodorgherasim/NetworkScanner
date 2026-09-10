@@ -1,4 +1,4 @@
-#include "NetworkSocker.hpp"
+#include "NetworkSocket.hpp"
 
 NetworkSocket :: NetworkSocket(){
     m_socket = INVALID_SOCKET;

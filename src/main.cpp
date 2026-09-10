@@ -1,5 +1,7 @@
 #include <iostream>
-#include "../include/NetworkSocker.hpp"
+#include "../include/NetworkSocket.hpp"
+#include <chrono>
+#include "../include/PortScanner.hpp"
 
 int main()
 {
@@ -10,20 +12,22 @@ int main()
     
     {
         std :: string target = "45.33.32.156";
-        std :: cout <<"Scanam porturile 78-82 pe "<<target<<"...\n";
+        int start_port = 1;
+        int end_port = 1024;
+        int thread_count = 500;
 
-        for(int i=78;i<=82;++i)
-        {
-            NetworkSocket scanner;
-            if(scanner.connect_to(target,i,200))
-            {
-                std :: cout <<"[+] Portul " << i << " este DESCHIS!\n";
-            }
-            else
-            {
-                std :: cout <<"[-] Portul " << i << " este INCHIS!\n"; 
-            }
-        }
+        std :: cout << "Scanam porturile "<<start_port<<"-"<<end_port<<" pe "<< target << " folosind " <<thread_count <<" threads....\n";
+        auto start_time = std :: chrono:: high_resolution_clock :: now();
+
+        PortScanner scanner(target, start_port, end_port, 500);
+        scanner.scan(thread_count);
+
+        auto end_time = std :: chrono :: high_resolution_clock :: now();
+        auto duration = std :: chrono :: duration_cast < std :: chrono :: milliseconds>(end_time-start_time).count();
+
+        std::cout << "\n----------------------------------------\n";
+        std::cout << "Scanare finalizata in " << duration / 1000.0 << " secunde!\n";
+        std::cout << "Total porturi deschise gasite: " << scanner.get_open_ports().size() << "\n";
     }
 
     WSACleanup();

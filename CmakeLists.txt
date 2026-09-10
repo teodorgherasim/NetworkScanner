@@ -9,6 +9,7 @@ include_directories(include)
 add_executable(scanner
     src/main.cpp
     src/NetworkSocket.cpp
+    src/PortScanner.cpp
 )
 
 if(WIN32)
