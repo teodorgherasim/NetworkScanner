@@ -4,31 +4,26 @@
 int main()
 {
     WSADATA wsaData;
-    if(WSAStartup(MAKEWORD(2,2), &wsaData)!= 0){
-        std :: cerr <<"Ëroare la initializare WSAStartup!\n";
+    
+    if(WSAStartup(MAKEWORD(2,2), &wsaData) != 0)
         return 1;
-    }
-
-    //folosim {} ca scop izolant pentru ca obocetul scanner sa fie distrus
-    //iar destrutorul sa inchida socket ul inainte de WSACleanup()
+    
     {
-        NetworkSocket scanner_socket;
-        std :: string target_ip = "45.33.32.156";
-        int target_port=80;
+        std :: string target = "45.33.32.156";
+        std :: cout <<"Scanam porturile 78-82 pe "<<target<<"...\n";
 
-        std :: cout <<"Verificam " << target_ip << "...\n";
-
-        if(scanner_socket.connect_to(target_ip,target_port))
+        for(int i=78;i<=82;++i)
         {
-            std :: cout <<"Portul "<<target_port << " este DESCHIS!\n";
-
+            NetworkSocket scanner;
+            if(scanner.connect_to(target,i,200))
+            {
+                std :: cout <<"[+] Portul " << i << " este DESCHIS!\n";
+            }
+            else
+            {
+                std :: cout <<"[-] Portul " << i << " este INCHIS!\n"; 
+            }
         }
-        else
-        {
-            std :: cout <<"Portul " << target_port << " este INCHIS!\n";
-        }
-
-
     }
 
     WSACleanup();
