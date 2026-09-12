@@ -3,63 +3,70 @@
 #include "NetworkSocket.hpp"
 #include <thread>
 
-
-PortScanner :: PortScanner(std :: string target_ip, int start_port, int end_port, int timeout_ms)
-    :m_target_ip(std::move(target_ip)),
-    m_start_port(start_port),
-    m_end_port(end_port),
-    m_timeout_ms(timeout_ms),
-    m_current_port(start_port)
-{   
+PortScanner::PortScanner(std::string target_ip, int start_port, int end_port, int timeout_ms)
+    : m_target_ip(std::move(target_ip)),
+      m_start_port(start_port),
+      m_end_port(end_port),
+      m_timeout_ms(timeout_ms),
+      m_current_port(start_port)
+{
 }
 
-void PortScanner :: worker_thread()
+void PortScanner::worker_thread()
 {
-    while(true)
+    while (true)
     {
         int port = m_current_port.fetch_add(1);
-        if(port > m_end_port)
+        if (port > m_end_port)
         {
             break;
         }
 
         NetworkSocket socket;
-        if(socket.connect_to(m_target_ip,port,m_timeout_ms))
+        if (socket.connect_to(m_target_ip, port, m_timeout_ms))
         {
-            std :: lock_guard < std:: mutex> lock(m_mutex);
-            m_open_ports.push_back(port);
-            std :: cout << "[+] Portul " << port << " este DESCHIS!\n";
+            std::string banner = socket.grab_banner(m_timeout_ms);
+
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                m_open_ports.emplace_back(PortResult{port,banner});
+
+
+                std::cout << "[+] Portul " << port << " este DESCHIS!\n";
+                if (!banner.empty() && banner != "No banner returned")
+                {
+                    std::cout << " | Banner: " << banner;
+                }
+                std::cout << "\n";
+            }
         }
     }
 }
 
-
-void PortScanner :: scan(size_t thread_count)
+void PortScanner::scan(size_t thread_count)
 {
     m_current_port = m_start_port;
     m_open_ports.clear();
 
-    std :: vector<std::thread> threads;
+    std::vector<std::thread> threads;
     threads.reserve(thread_count);
 
-    for(size_t i = 0; i< thread_count; ++i)
+    for (size_t i = 0; i < thread_count; ++i)
     {
-        threads.emplace_back(&PortScanner :: worker_thread, this);
+        threads.emplace_back(&PortScanner::worker_thread, this);
     }
 
-    for(auto& t : threads)
+    for (auto &t : threads)
     {
-        if(t.joinable())
+        if (t.joinable())
         {
             t.join();
         }
     }
 }
 
-
-
-std :: vector<int> PortScanner :: get_open_ports() const
+std::vector<PortResult> PortScanner::get_open_ports() const
 {
-    std :: lock_guard <std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     return m_open_ports;
 }

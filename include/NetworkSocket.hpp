@@ -8,6 +8,7 @@
 class NetworkSocket {
     private:
         SOCKET m_socket;
+        bool m_wsa_initialized;
     public:
         NetworkSocket();
         ~NetworkSocket();
@@ -16,7 +17,9 @@ class NetworkSocket {
         NetworkSocket(const NetworkSocket&) = delete;
         NetworkSocket& operator=(const NetworkSocket&) = delete;
 
-        bool connect_to(const std:: string &ip, int port, int timeout_ms = 200);
+        bool connect_to(const std:: string &ip, int port, int timeout_ms = 1000);
         bool is_valid() const;
+        std :: string grab_banner(int timeout_ms = 1000);
+        void close();
 
 };

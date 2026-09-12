@@ -2,11 +2,21 @@
 
 NetworkSocket :: NetworkSocket(){
     m_socket = INVALID_SOCKET;
+    m_wsa_initialized=false;
+    WSADATA wsaData;
+    if(WSAStartup(MAKEWORD(2,2),&wsaData) == 0){
+        m_wsa_initialized=true;
+    }
+
+
 }
 
 NetworkSocket :: ~NetworkSocket(){
     if(m_socket != INVALID_SOCKET){
         closesocket(m_socket);
+    }
+    if(m_wsa_initialized){
+        WSACleanup();
     }
 }
 
@@ -17,10 +27,13 @@ bool NetworkSocket :: is_valid()const
 
 bool NetworkSocket :: connect_to(const std :: string &ip, int port, int timeout_ms)
 {
+    if(!m_wsa_initialized) return false;
+
+
+
     if(is_valid())
     {
-        closesocket(m_socket);
-        m_socket = INVALID_SOCKET;
+        close();
     }
 
     m_socket = socket(AF_INET,SOCK_STREAM,0);
@@ -33,8 +46,8 @@ bool NetworkSocket :: connect_to(const std :: string &ip, int port, int timeout_
     u_long mode = 1;
     if(ioctlsocket(m_socket, FIONBIO, &mode) == SOCKET_ERROR) //sistemul de operare nu blocheaza firul de executie la apelarea connect 
     {
-        closesocket(m_socket);
-        m_socket = INVALID_SOCKET;
+        close();
+        return false;
     }
     
     sockaddr_in server_addr{}; //{}declara toti octetii cu 0
@@ -43,8 +56,7 @@ bool NetworkSocket :: connect_to(const std :: string &ip, int port, int timeout_
 
     if(inet_pton(AF_INET,ip.c_str(),&server_addr.sin_addr)<=0)
     {
-        closesocket(m_socket);
-        m_socket = INVALID_SOCKET;
+        close();
         return false;
     }
 
@@ -55,8 +67,7 @@ bool NetworkSocket :: connect_to(const std :: string &ip, int port, int timeout_
         int err = WSAGetLastError();
         if(err != WSAEWOULDBLOCK)
         {
-            closesocket(m_socket);
-            m_socket = INVALID_SOCKET;
+            close();
             return false;
         }
     }
@@ -89,8 +100,52 @@ bool NetworkSocket :: connect_to(const std :: string &ip, int port, int timeout_
         }
     }
 
-    closesocket(m_socket);
-    m_socket = INVALID_SOCKET;
+    close();
     return false;
 
 }
+
+void NetworkSocket :: close(){
+    if(m_socket != INVALID_SOCKET){
+        closesocket(m_socket);
+        m_socket= INVALID_SOCKET;
+    }
+}
+
+std :: string NetworkSocket :: grab_banner(int timeout_ms){
+    if(!is_valid())return "";
+
+    const char* probe="HEAD / HTTP/1.1\r\nHost : target\r\n\r\n";
+    send(m_socket,probe, static_cast<int>(strlen(probe)),0);
+
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(m_socket, &read_fds);
+
+    timeval tv{};
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+    int sel_res = select(0,&read_fds,NULL,NULL,&tv);
+    if(sel_res > 0 && FD_ISSET(m_socket,&read_fds)){
+        char buffer[512] = {0};
+        int bytes_recieved = recv(m_socket,buffer,static_cast<int>(sizeof(buffer)-1),0);
+
+        if(bytes_recieved > 0){
+            buffer[bytes_recieved] = '\0';
+            std :: string banner(buffer);
+
+            for(char &c : banner){
+                if( c == '\r' || c == '\n') 
+                    c = ' ';
+            }
+            return banner;
+
+
+        }
+    }
+
+    return "No banner returned";
+}
+
+
