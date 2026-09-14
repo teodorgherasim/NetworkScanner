@@ -3,6 +3,8 @@
 #include "../include/NetworkSocket.hpp"
 #include <chrono>
 #include "../include/PortScanner.hpp"
+#include "../include/ResultExporter.hpp"
+
 
 void print(const char* program_name){
     std::cout <<"Utilizare: " <<program_name << " -i <IP> -p <start-end> [-t <timeout_ms>] [--threads <nr_threaduri>]\n\n";
@@ -25,6 +27,7 @@ int main(int argc, char* argv[])
     } 
 
     std::string target_ip;
+    std::string output_file;
     int start_port = 1;
     int end_port = 1024;
     int timeout_ms = 500;
@@ -49,6 +52,8 @@ int main(int argc, char* argv[])
             timeout_ms = std::stoi(argv[++i]);
         } else if (arg == "--threads" && i + 1 < argc) {
             thread_count = std::stoi(argv[++i]);
+        }else if((arg == "-o") || (arg == "--output") && i + 1 < argc){
+            output_file = argv[++i];
         }
     }
 
@@ -70,8 +75,12 @@ int main(int argc, char* argv[])
         std::cout << " Porturi:  " << start_port << " - " << end_port << "\n";
         std::cout << " Threads:  " << thread_count << "\n";
         std::cout << " Timeout:  " << timeout_ms << " ms\n";
+      
+        
+        if(!output_file.empty()){
+            std::cout<<"Output : " << output_file << "\n";
+        }
         std::cout << "========================================\n\n";
-
         auto start_time = std::chrono::high_resolution_clock::now();
 
         PortScanner scanner(target_ip, start_port, end_port, timeout_ms);
@@ -85,6 +94,22 @@ int main(int argc, char* argv[])
         std::cout << "\n----------------------------------------\n";
         std::cout << "Scanare finalizata in " << duration / 1000.0 << " secunde!\n";
         std::cout << "Total porturi deschise gasite: " << open_ports.size() << "\n";
+
+        if(!output_file.empty()){
+            bool success = false;
+            if(output_file.rfind(".csv") != std::string::npos){
+                success = ResultExporter :: to_csv(output_file,open_ports);
+            }else{
+                success = ResultExporter :: to_json(output_file,target_ip,open_ports);
+            }
+
+            if(success){
+                std::cout<<"[+] Rezultatele au fost salvate in: "<<output_file << "\n";
+                
+            }else{
+                std::cerr <<"[!] Eroare la salvarea fisierului!\n";
+            }
+        }
     }
 
     WSACleanup();

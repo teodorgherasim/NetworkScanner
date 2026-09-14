@@ -2,6 +2,7 @@
 #include "PortScanner.hpp"
 #include "NetworkSocket.hpp"
 #include <thread>
+#include <unordered_map>
 
 PortScanner::PortScanner(std::string target_ip, int start_port, int end_port, int timeout_ms)
     : m_target_ip(std::move(target_ip)),
@@ -69,4 +70,16 @@ std::vector<PortResult> PortScanner::get_open_ports() const
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     return m_open_ports;
+}
+
+static std :: string get_service_name(int port)
+{
+    static const std :: unordered_map<int,std::string> unknown_ports = {
+        {21,"FTP"},{22,"SSH"},{23,"Telney"},{25,"SMTP"},{53,"DNS"},
+        {80,"HTTP"},{110,"POP3"},{143,"IMAP"},{443,"HTTPS"},{3306,"MySQL"},
+        {5432,"PostgreSQL"},{8080,"HTTP-PROXY"},{8443,"HTTPS-ALT"}
+    };
+
+    auto it = unknown_ports.find(port);
+    return (it != unknown_ports.end()) ? it->second : "UNKNOWN";
 }

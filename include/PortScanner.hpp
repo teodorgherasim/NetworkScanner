@@ -7,6 +7,7 @@
 
 struct PortResult{
     int port;
+    std :: string service_name;
     std :: string banner;
 };
 
