@@ -10,7 +10,8 @@ add_executable(scanner
     src/main.cpp
     src/NetworkSocket.cpp
     src/PortScanner.cpp
-    src/ResulExporter.cpp
+    src/ResultExporter.cpp
+    src/ApiServer.cpp
 )
 
 if(WIN32)
