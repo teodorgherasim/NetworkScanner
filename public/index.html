@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++ TCP Scanner Dashboard</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --muted: #94a3b8; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 2rem; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { color: var(--accent); margin-bottom: 0.5rem; }
+        p.subtitle { color: var(--muted); margin-top: 0; margin-bottom: 2rem; }
+        .card { background: var(--card); padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); margin-bottom: 1.5rem; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .form-group { display: flex; flex-direction: column; }
+        label { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.3rem; }
+        input { background: #0f172a; border: 1px solid #334155; color: #fff; padding: 0.6rem; border-radius: 6px; outline: none; }
+        input:focus { border-color: var(--accent); }
+        button { background: var(--accent); color: #0f172a; font-weight: bold; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .status-bar { display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--muted); }
+        .badge { padding: 0.25rem 0.6rem; border-radius: 9999px; font-weight: bold; font-size: 0.8rem; }
+        .badge-idle { background: #334155; color: #fff; }
+        .badge-scanning { background: #f59e0b; color: #000; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; text-align: left; }
+        th, td { padding: 0.75rem; border-bottom: 1px solid #334155; }
+        th { color: var(--accent); font-size: 0.85rem; text-transform: uppercase; }
+        .badge-open { background: #10b98120; color: #34d399; border: 1px solid #059669; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>C++ TCP Port Scanner</h1>
+        <p class="subtitle">Embedded REST API & Real-time Web Interface</p>
+
+        <div class="card">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Target IP</label>
+                    <input type="text" id="target" value="127.0.0.1">
+                </div>
+                <div class="form-group">
+                    <label>Start Port</label>
+                    <input type="number" id="startPort" value="1">
+                </div>
+                <div class="form-group">
+                    <label>End Port</label>
+                    <input type="number" id="endPort" value="1024">
+                </div>
+                <div class="form-group">
+                    <label>Threads</label>
+                    <input type="number" id="threads" value="50">
+                </div>
+                <div class="form-group">
+                    <label>Timeout (ms)</label>
+                    <input type="number" id="timeout" value="500">
+                </div>
+            </div>
+            <button id="scanBtn" onclick="startScan()">Start Scan</button>
+        </div>
+
+        <div class="card">
+            <div class="status-bar">
+                <span>Status: <span id="statusBadge" class="badge badge-idle">IDLE</span></span>
+                <span id="targetLabel">Target: -</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Port</th>
+                        <th>Serviciu</th>
+                        <th>Status</th>
+                        <th>Banner / Răspuns</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsTable">
+                    <tr><td colspan="4" style="text-align:center; color: var(--muted);">Nicio scanare efectuată.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let pollInterval = null;
+
+        async function startScan() {
+            const target = document.getElementById('target').value;
+            const start = document.getElementById('startPort').value;
+            const end = document.getElementById('endPort').value;
+            const threads = document.getElementById('threads').value;
+            const timeout = document.getElementById('timeout').value;
+
+            document.getElementById('scanBtn').disabled = true;
+
+            try {
+                const res = await fetch(`/api/v1/scan?target=${target}&start=${start}&end=${end}&threads=${threads}&timeout=${timeout}`, { method: 'POST' });
+                if (res.ok) {
+                    checkStatus();
+                    pollInterval = setInterval(checkStatus, 1000);
+                } else {
+                    alert('Există deja o scanare în desfășurare!');
+                    document.getElementById('scanBtn').disabled = false;
+                }
+            } catch (err) {
+                alert('Eroare la conectarea la API-ul C++');
+                document.getElementById('scanBtn').disabled = false;
+            }
+        }
+
+        async function checkStatus() {
+            try {
+                const res = await fetch('/api/v1/status');
+                const data = await res.json();
+
+                const badge = document.getElementById('statusBadge');
+                badge.innerText = data.status.toUpperCase();
+                badge.className = 'badge ' + (data.status === 'scanning' ? 'badge-scanning' : 'badge-idle');
+                document.getElementById('targetLabel').innerText = `Target: ${data.last_target || '-'}`;
+
+                if (data.status === 'idle') {
+                    if (pollInterval) clearInterval(pollInterval);
+                    document.getElementById('scanBtn').disabled = false;
+                    fetchResults();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function fetchResults() {
+            try {
+                const res = await fetch('/api/v1/results');
+                const data = await res.json();
+                const tbody = document.getElementById('resultsTable');
+                tbody.innerHTML = '';
+
+                if (data.ports.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--muted);">Nu s-au găsit porturi deschise.</td></tr>';
+                    return;
+                }
+
+                data.ports.forEach(p => {
+                    const row = `<tr>
+                        <td><strong>${p.port}</strong></td>
+                        <td>${p.service}</td>
+                        <td><span class="badge-open">OPEN</span></td>
+                        <td><code>${p.banner || '-'}</code></td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    </script>
+</body>
+</html>

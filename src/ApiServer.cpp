@@ -20,6 +20,8 @@ ApiServer::ApiServer(int port)
 ApiServer::~ApiServer() =default;
 
 void ApiServer::setup_routes() {
+
+    m_impl->svr.set_mount_point("/","./public");
     // 1. GET /api/v1/status - Verifica daca exista o scanare in desfasurare
     m_impl->svr.Get("/api/v1/status", [this](const httplib::Request&, httplib::Response& res) {
         std::lock_guard<std::mutex> lock(m_mutex);

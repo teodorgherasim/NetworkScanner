@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
     int start_port = 1;
     int end_port = 1024;
     int timeout_ms = 500;
-    int thread_count = 50;
+    int thread_count = 500;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
