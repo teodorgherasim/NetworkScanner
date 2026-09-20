@@ -55,7 +55,7 @@ The following benchmark was executed locally on `127.0.0.1` across a range of **
                                                                     ┌───────────┴───────────┐
                                                                     ▼                       ▼
                                                              [ NetworkSocket ]    [ ResultExporter ]
-
+```
 ## Project Structure
 
 ```text
